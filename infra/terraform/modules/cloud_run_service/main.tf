@@ -1,8 +1,9 @@
 locals {
-  normalized_service_name = trim(regexreplace(lower(var.service_name), "[^a-z0-9-]", "-"), "-")
-  service_name            = local.normalized_service_name != "" ? local.normalized_service_name : "app"
-  base_service_account_id = "${local.service_name}-${var.service_account_suffix}"
-  service_account_id      = substr(local.base_service_account_id, 0, min(30, length(local.base_service_account_id)))
+  normalized_service_name_parts = regexall("[a-z0-9]+", lower(var.service_name))
+  normalized_service_name       = length(local.normalized_service_name_parts) > 0 ? join("-", local.normalized_service_name_parts) : "app"
+  service_name                  = local.normalized_service_name
+  base_service_account_id       = "${local.service_name}-${var.service_account_suffix}"
+  service_account_id            = substr(local.base_service_account_id, 0, min(30, length(local.base_service_account_id)))
 }
 
 resource "google_project_service" "run" {
