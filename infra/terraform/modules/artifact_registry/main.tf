@@ -10,7 +10,7 @@ resource "google_project_service" "artifactregistry" {
 
 resource "google_artifact_registry_repository" "repository" {
   project       = var.project_id
-  location      = locals.location
+  location      = local.location
   repository_id = var.repository_id
   description   = var.description
   format        = "DOCKER"
