@@ -1,0 +1,41 @@
+{{define "form.tmpl"}}
+  {{template "layout" .}}
+{{end}}
+
+{{define "title"}}
+  {{if .IsEdit}}Edit Post{{else}}New Post{{end}}
+{{end}}
+
+{{define "content"}}
+  <section>
+    <h2>{{if .IsEdit}}Update Post{{else}}Create a New Post{{end}}</h2>
+    {{if .Error}}
+      <div class="error">{{.Error}}</div>
+    {{end}}
+    <form method="post" action="{{.Action}}">
+      <label for="title">Title</label>
+      <input type="text" id="title" name="title" value="{{.Post.Title}}" placeholder="My first Cloud Run article">
+
+      <label for="body">Body (Markdown supported)</label>
+      <textarea id="body" name="body" placeholder="Write your post content here...">{{.Post.Body}}</textarea>
+
+      <div class="form-actions">
+        <button type="submit">{{if .IsEdit}}Save Changes{{else}}Create Post{{end}}</button>
+        <a class="btn button-secondary" href="/">Cancel</a>
+      </div>
+    </form>
+  </section>
+
+  {{if .IsEdit}}
+    <section>
+      <h3>Export &amp; Danger Zone</h3>
+      <div class="actions">
+        <a class="btn button-secondary" href="/posts/{{.Post.ID}}/markdown">Download Markdown</a>
+        <form method="post" action="/posts/{{.Post.ID}}/delete">
+          <button class="button-danger" type="submit">Delete Post</button>
+        </form>
+      </div>
+    </section>
+  {{end}}
+{{end}}
+

@@ -1,0 +1,19 @@
+# Go build cache
+bin/
+dist/
+*.log
+
+# Go test cache
+.cache/
+
+# Terraform
+.terraform/
+.terraform.lock.hcl
+terraform.tfstate
+terraform.tfstate.*
+*.tfvars
+*.tfvars.json
+
+# Editor
+.DS_Store
+*.swp

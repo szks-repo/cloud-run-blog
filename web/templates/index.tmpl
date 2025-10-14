@@ -1,0 +1,32 @@
+{{define "index.tmpl"}}
+  {{template "layout" .}}
+{{end}}
+
+{{define "title"}}Posts{{end}}
+
+{{define "content"}}
+  <div class="actions" style="justify-content: flex-end; margin-bottom: 1rem;">
+    <a class="btn" href="/posts/new">Create Post</a>
+  </div>
+  {{if .Posts}}
+    {{range .Posts}}
+      <article>
+        <h2>{{.Title}}</h2>
+        <time datetime="{{.CreatedAt.Format "2006-01-02T15:04:05Z07:00"}}">{{formatTime .CreatedAt}}</time>
+        <p>{{.Body}}</p>
+        <div class="actions">
+          <a class="btn" href="/posts/{{.ID}}/edit">Edit</a>
+          <a class="btn button-secondary" href="/posts/{{.ID}}/markdown">Export Markdown</a>
+          <form method="post" action="/posts/{{.ID}}/delete">
+            <button class="button-danger" type="submit">Delete</button>
+          </form>
+        </div>
+      </article>
+    {{end}}
+  {{else}}
+    <div class="empty-state">
+      <p>No posts yet. Create your first entry to get started.</p>
+    </div>
+  {{end}}
+{{end}}
+
