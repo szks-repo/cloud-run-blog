@@ -55,17 +55,31 @@ jobs:
             echo "Cloud Build operation name missing." >&2
             exit 1
           fi
-          echo "Waiting for Cloud Build operation $OPERATION..."
-          if ! gcloud builds operations wait "$OPERATION" \
-            --project "${{ secrets.GOOGLE_CLOUD_PROJECT_ID }}" \
-            --region "${{ env.REGION }}"; then
-            echo "Cloud Build failed. Operation details:" >&2
-            gcloud builds operations describe "$OPERATION" \
+          BUILD_ID="${OPERATION##*/}"
+          echo "Waiting for Cloud Build $BUILD_ID..."
+          while true; do
+            STATUS=$(gcloud builds describe "$BUILD_ID" \
               --project "${{ secrets.GOOGLE_CLOUD_PROJECT_ID }}" \
               --region "${{ env.REGION }}" \
-              --format="yaml" >&2
-            exit 1
-          fi
+              --format="value(status)")
+            case "$STATUS" in
+              SUCCESS)
+                echo "Cloud Build $BUILD_ID succeeded."
+                break
+                ;;
+              QUEUED|WORKING)
+                sleep 10
+                ;;
+              *)
+                echo "Cloud Build $BUILD_ID failed with status: $STATUS" >&2
+                gcloud builds describe "$BUILD_ID" \
+                  --project "${{ secrets.GOOGLE_CLOUD_PROJECT_ID }}" \
+                  --region "${{ env.REGION }}" \
+                  --format="yaml" >&2
+                exit 1
+                ;;
+            esac
+          done
 
       - name: Deploy to Cloud Run
         run: |
