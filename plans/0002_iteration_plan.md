@@ -19,6 +19,7 @@
 4. **CI/CD Improvements**
    - Introduce lint/static analysis (e.g., `go vet`, `staticcheck` if dependency acceptable).
    - Add Terraform plan job using GitHub OIDC (requires secrets) with manual approval gate.
+   - Wire Terraform apply (manual or automated) so infrastructure changes are managed via IaC rather than ad-hoc gcloud commands.
 5. **Documentation**
    - Expand README with local development guide, Terraform usage, and CI/CD overview.
    - Document secret management strategy (GitHub Actions secrets, Cloud Secret Manager).
