@@ -35,50 +35,37 @@ jobs:
       - name: Build & Push image
         id: cloudbuild-submit
         run: |
-          BUILD_ID=$(gcloud builds submit \
+          OPERATION=$(gcloud builds submit \
             --project "${{ secrets.GOOGLE_CLOUD_PROJECT_ID }}" \
             --region "${{ env.REGION }}" \
             --tag "${{ env.IMAGE }}" \
             --async \
-            --format='value(metadata.build.id)')
-          if [ -z "$BUILD_ID" ]; then
-            echo "Failed to obtain Cloud Build ID." >&2
+            --format='value(name)')
+          if [ -z "$OPERATION" ]; then
+            echo "Failed to obtain Cloud Build operation name." >&2
             exit 1
           fi
-          echo "build_id=$BUILD_ID" >> "$GITHUB_OUTPUT"
-          echo "Triggered Cloud Build: $BUILD_ID"
+          echo "operation=$OPERATION" >> "$GITHUB_OUTPUT"
+          echo "Triggered Cloud Build operation: $OPERATION"
 
       - name: Wait for Cloud Build
         run: |
-          BUILD_ID="${{ steps.cloudbuild-submit.outputs.build_id }}"
-          if [ -z "$BUILD_ID" ]; then
-            echo "Cloud Build ID missing." >&2
+          OPERATION="${{ steps.cloudbuild-submit.outputs.operation }}"
+          if [ -z "$OPERATION" ]; then
+            echo "Cloud Build operation name missing." >&2
             exit 1
           fi
-          echo "Waiting for Cloud Build $BUILD_ID..."
-          while true; do
-            STATUS=$(gcloud builds describe "$BUILD_ID" \
+          echo "Waiting for Cloud Build operation $OPERATION..."
+          if ! gcloud builds operations wait "$OPERATION" \
+            --project "${{ secrets.GOOGLE_CLOUD_PROJECT_ID }}" \
+            --region "${{ env.REGION }}"; then
+            echo "Cloud Build failed. Operation details:" >&2
+            gcloud builds operations describe "$OPERATION" \
               --project "${{ secrets.GOOGLE_CLOUD_PROJECT_ID }}" \
               --region "${{ env.REGION }}" \
-              --format="value(status)")
-            case "$STATUS" in
-              SUCCESS)
-                echo "Cloud Build $BUILD_ID succeeded."
-                break
-                ;;
-              QUEUED|WORKING)
-                sleep 10
-                ;;
-              *)
-                echo "Cloud Build $BUILD_ID failed with status: $STATUS" >&2
-                gcloud builds describe "$BUILD_ID" \
-                  --project "${{ secrets.GOOGLE_CLOUD_PROJECT_ID }}" \
-                  --region "${{ env.REGION }}" \
-                  --format="yaml"
-                exit 1
-                ;;
-            esac
-          done
+              --format="yaml" >&2
+            exit 1
+          fi
 
       - name: Deploy to Cloud Run
         run: |
