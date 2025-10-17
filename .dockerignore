@@ -1,0 +1,19 @@
+# Build artifacts
+bin
+dist
+.cache
+
+# VCS
+.git
+.gitignore
+
+# Terraform local state
+*.tfstate
+*.tfstate.*
+.terraform
+.terraform.lock.hcl
+
+# Node / editor miscellany
+node_modules
+.DS_Store
+*.swp
