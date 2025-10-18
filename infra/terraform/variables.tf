@@ -6,13 +6,13 @@ variable "project_id" {
 variable "region" {
   description = "Region for Cloud Run service deployment."
   type        = string
-  default     = "us-central1"
+  default     = "asia-northeast1"
 }
 
 variable "artifact_region" {
   description = "Region for Artifact Registry repository (defaults to the Cloud Run region)."
   type        = string
-  default     = "us-central1"
+  default     = "asia-northeast1"
 }
 
 variable "repository_id" {
@@ -28,7 +28,7 @@ variable "service_name" {
 }
 
 variable "image" {
-  description = "Container image reference (e.g. us-central1-docker.pkg.dev/PROJECT/REPO/app:tag)."
+  description = "Container image reference (e.g. asia-northeast1-docker.pkg.dev/PROJECT/REPO/app:tag)."
   type        = string
 }
 

@@ -8,11 +8,7 @@ terraform {
     }
   }
 
-  # Configure the backend once you have created a state bucket:
-  # backend "gcs" {
-  #   bucket = "YOUR_TERRAFORM_STATE_BUCKET"
-  #   prefix = "cloud-run-blog"
-  # }
+  backend "gcs" {}
 }
 
 provider "google" {

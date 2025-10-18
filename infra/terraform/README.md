@@ -18,9 +18,9 @@ This directory contains Infrastructure as Code definitions for deploying the Clo
 
 ```hcl
 project_id     = "my-gcp-project"
-region         = "us-central1"
-artifact_region = "us-central1"
-image          = "us-central1-docker.pkg.dev/my-gcp-project/cloud-run-blog/app:latest"
+region         = "asia-northeast1"
+artifact_region = "asia-northeast1"
+image          = "asia-northeast1-docker.pkg.dev/my-gcp-project/cloud-run-blog/app:latest"
 env_vars = {
   "APP_ENV" = "production"
 }

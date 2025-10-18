@@ -1,0 +1,253 @@
+name: Terraform Deploy
+
+on:
+  workflow_dispatch:
+
+env:
+  GO_VERSION: "1.25"
+  SERVICE_NAME: cloud-run-blog
+  REGION: asia-northeast1
+  ARTIFACT_REGION: asia-northeast1
+  TERRAFORM_WORKING_DIR: infra/terraform
+  IMAGE: ${{ secrets.ARTIFACT_REPOSITORY }}:${{ github.sha }}
+  TF_IN_AUTOMATION: "true"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      image: ${{ steps.capture-image.outputs.image }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GOOGLE_CLOUD_SERVICE_ACCOUNT }}
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Build & Push image
+        id: cloudbuild-submit
+        run: |
+          OPERATION=$(gcloud builds submit \
+            --project "${{ secrets.GOOGLE_CLOUD_PROJECT_ID }}" \
+            --region "${{ env.REGION }}" \
+            --tag "${{ env.IMAGE }}" \
+            --async \
+            --format='value(name)')
+          if [ -z "$OPERATION" ]; then
+            echo "Failed to obtain Cloud Build operation name." >&2
+            exit 1
+          fi
+          echo "operation=$OPERATION" >> "$GITHUB_OUTPUT"
+          echo "Triggered Cloud Build operation: $OPERATION"
+
+      - name: Wait for Cloud Build
+        id: wait-build
+        run: |
+          OPERATION="${{ steps.cloudbuild-submit.outputs.operation }}"
+          if [ -z "$OPERATION" ]; then
+            echo "Cloud Build operation name missing." >&2
+            exit 1
+          fi
+          BUILD_ID="${OPERATION##*/}"
+          if [ -z "$BUILD_ID" ]; then
+            echo "Failed to parse Cloud Build ID from operation." >&2
+            exit 1
+          fi
+          echo "build_id=$BUILD_ID" >> "$GITHUB_OUTPUT"
+          echo "Waiting for Cloud Build $BUILD_ID..."
+          while true; do
+            STATUS=$(gcloud builds describe "$BUILD_ID" \
+              --project "${{ secrets.GOOGLE_CLOUD_PROJECT_ID }}" \
+              --region "${{ env.REGION }}" \
+              --format="value(status)")
+            case "$STATUS" in
+              SUCCESS)
+                echo "Cloud Build $BUILD_ID succeeded."
+                break
+                ;;
+              QUEUED|WORKING)
+                sleep 10
+                ;;
+              *)
+                echo "Cloud Build $BUILD_ID failed with status: $STATUS" >&2
+                gcloud builds describe "$BUILD_ID" \
+                  --project "${{ secrets.GOOGLE_CLOUD_PROJECT_ID }}" \
+                  --region "${{ env.REGION }}" \
+                  --format="yaml" >&2
+                exit 1
+                ;;
+            esac
+          done
+
+      - name: Capture image digest
+        id: capture-image
+        env:
+          PROJECT_ID: ${{ secrets.GOOGLE_CLOUD_PROJECT_ID }}
+        run: |
+          BUILD_ID="${{ steps.wait-build.outputs.build_id }}"
+          if [ -z "$BUILD_ID" ]; then
+            echo "Cloud Build ID missing." >&2
+            exit 1
+          fi
+          IMAGE_NAME=$(gcloud builds describe "$BUILD_ID" \
+            --project "$PROJECT_ID" \
+            --region "${{ env.REGION }}" \
+            --format="value(results.images[0].name)")
+          IMAGE_DIGEST=$(gcloud builds describe "$BUILD_ID" \
+            --project "$PROJECT_ID" \
+            --region "${{ env.REGION }}" \
+            --format="value(results.images[0].digest)")
+          if [ -z "$IMAGE_NAME" ] || [ -z "$IMAGE_DIGEST" ]; then
+            echo "Unable to resolve image name or digest." >&2
+            exit 1
+          fi
+          FULL_IMAGE="$IMAGE_NAME@$IMAGE_DIGEST"
+          echo "Resolved image: $FULL_IMAGE"
+          echo "image=$FULL_IMAGE" >> "$GITHUB_OUTPUT"
+          {
+            echo '### Built image'
+            echo "- \\`$FULL_IMAGE\\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  terraform-plan:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      has_changes: ${{ steps.plan.outputs.has_changes }}
+    env:
+      TF_VAR_project_id: ${{ secrets.GOOGLE_CLOUD_PROJECT_ID }}
+      TF_VAR_region: ${{ env.REGION }}
+      TF_VAR_artifact_region: ${{ env.ARTIFACT_REGION }}
+      TF_VAR_service_name: ${{ env.SERVICE_NAME }}
+      TF_VAR_image: ${{ needs.build.outputs.image }}
+      TERRAFORM_STATE_BUCKET: ${{ secrets.TERRAFORM_STATE_BUCKET }}
+      TERRAFORM_STATE_PREFIX: ${{ secrets.TERRAFORM_STATE_PREFIX }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GOOGLE_CLOUD_SERVICE_ACCOUNT }}
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - name: Terraform Init
+        working-directory: ${{ env.TERRAFORM_WORKING_DIR }}
+        run: |
+          if [ -z "$TERRAFORM_STATE_BUCKET" ] || [ -z "$TERRAFORM_STATE_PREFIX" ]; then
+            echo "TERRAFORM_STATE_BUCKET and TERRAFORM_STATE_PREFIX secrets must be configured." >&2
+            exit 1
+          fi
+          terraform init \
+            -backend-config="bucket=$TERRAFORM_STATE_BUCKET" \
+            -backend-config="prefix=$TERRAFORM_STATE_PREFIX"
+
+      - name: Terraform Fmt
+        working-directory: ${{ env.TERRAFORM_WORKING_DIR }}
+        run: terraform fmt -check
+
+      - name: Terraform Validate
+        working-directory: ${{ env.TERRAFORM_WORKING_DIR }}
+        run: terraform validate
+
+      - name: Terraform Plan
+        id: plan
+        working-directory: ${{ env.TERRAFORM_WORKING_DIR }}
+        run: |
+          terraform plan -input=false -out=tfplan
+          terraform show -json tfplan > tfplan.json
+          CHANGES=$(jq '[.resource_changes[]? | select(.change.actions != ["no-op"])] | length' tfplan.json)
+          if [ "$CHANGES" -gt 0 ]; then
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+          fi
+          terraform show -no-color tfplan > tfplan.txt
+          {
+            echo '```'
+            cat tfplan.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload plan artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan
+          path: |
+            ${{ env.TERRAFORM_WORKING_DIR }}/tfplan
+            ${{ env.TERRAFORM_WORKING_DIR }}/tfplan.json
+            ${{ env.TERRAFORM_WORKING_DIR }}/tfplan.txt
+          if-no-files-found: error
+
+  terraform-apply:
+    needs:
+      - build
+      - terraform-plan
+    if: needs.terraform-plan.result == 'success' && needs.terraform-plan.outputs.has_changes == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    environment:
+      name: production
+    env:
+      TF_VAR_project_id: ${{ secrets.GOOGLE_CLOUD_PROJECT_ID }}
+      TF_VAR_region: ${{ env.REGION }}
+      TF_VAR_artifact_region: ${{ env.ARTIFACT_REGION }}
+      TF_VAR_service_name: ${{ env.SERVICE_NAME }}
+      TF_VAR_image: ${{ needs.build.outputs.image }}
+      TERRAFORM_STATE_BUCKET: ${{ secrets.TERRAFORM_STATE_BUCKET }}
+      TERRAFORM_STATE_PREFIX: ${{ secrets.TERRAFORM_STATE_PREFIX }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GOOGLE_CLOUD_SERVICE_ACCOUNT }}
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - name: Download plan artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: tfplan
+          path: ${{ env.TERRAFORM_WORKING_DIR }}
+
+      - name: Terraform Init
+        working-directory: ${{ env.TERRAFORM_WORKING_DIR }}
+        run: |
+          if [ -z "$TERRAFORM_STATE_BUCKET" ] || [ -z "$TERRAFORM_STATE_PREFIX" ]; then
+            echo "TERRAFORM_STATE_BUCKET and TERRAFORM_STATE_PREFIX secrets must be configured." >&2
+            exit 1
+          fi
+          terraform init \
+            -backend-config="bucket=$TERRAFORM_STATE_BUCKET" \
+            -backend-config="prefix=$TERRAFORM_STATE_PREFIX"
+
+      - name: Terraform Apply
+        working-directory: ${{ env.TERRAFORM_WORKING_DIR }}
+        run: terraform apply -input=false tfplan
