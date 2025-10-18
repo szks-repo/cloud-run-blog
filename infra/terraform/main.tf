@@ -25,10 +25,10 @@ provider "google" {
 module "artifact_registry" {
   source = "./modules/artifact_registry"
 
-  project_id    = var.project_id
-  location      = var.artifact_region
-  repository_id = var.repository_id
-  description   = "Container images for the Cloud Run Blog study project"
+  project_id        = var.project_id
+  location          = var.artifact_region
+  repository_id     = var.repository_id
+  description       = "Container images for the Cloud Run Blog study project"
   manage_repository = var.manage_artifact_registry
 }
 
