@@ -34,6 +34,8 @@ terraform plan
 terraform apply
 ```
 
+> Tested with Terraform 1.8 and later (supports GitHub Actions default 1.13.x).
+
 ## Security Notes
 
 - No secrets are stored in this repository. Supply sensitive values (e.g., database credentials) through Terraform variables or Cloud Run secrets at deploy time.
