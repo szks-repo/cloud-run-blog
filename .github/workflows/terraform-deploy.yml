@@ -173,6 +173,7 @@ jobs:
           TF_VAR_artifact_region: ${{ env.ARTIFACT_REGION }}
           TF_VAR_service_name: ${{ env.SERVICE_NAME }}
           TF_VAR_image: ${{ needs.build.outputs.image }}
+          TF_VAR_manage_artifact_registry: "false"
         run: |
           terraform plan -input=false -out=tfplan
           terraform show -json tfplan > tfplan.json
@@ -252,4 +253,5 @@ jobs:
           TF_VAR_artifact_region: ${{ env.ARTIFACT_REGION }}
           TF_VAR_service_name: ${{ env.SERVICE_NAME }}
           TF_VAR_image: ${{ needs.build.outputs.image }}
+          TF_VAR_manage_artifact_registry: "false"
         run: terraform apply -input=false tfplan

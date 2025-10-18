@@ -21,6 +21,7 @@ Configure the following repository secrets before running the workflow:
 - `ARTIFACT_REPOSITORY` – Artifact Registry repository path (e.g. `asia-northeast1-docker.pkg.dev/my-project/cloud-run-blog/app`).
 - `TERRAFORM_STATE_BUCKET` – GCS bucket name for Terraform remote state.
 - `TERRAFORM_STATE_PREFIX` – Key prefix within the state bucket (e.g. `cloud-run-blog/prod`).
+- Optional: set `TF_VAR_manage_artifact_registry=false` when using an existing Artifact Registry repository managed outside Terraform.
 
 Create a protected GitHub environment (e.g. `production`) with required reviewers to gate the `terraform-apply` job if manual approval is desired.
 
@@ -41,5 +42,6 @@ terraform init \
   -backend-config="prefix=cloud-run-blog/dev"
 terraform plan \
   -var "project_id=YOUR_PROJECT" \
-  -var "image=asia-northeast1-docker.pkg.dev/YOUR_PROJECT/cloud-run-blog/app:latest"
+  -var "image=asia-northeast1-docker.pkg.dev/YOUR_PROJECT/cloud-run-blog/app:latest" \
+  -var "manage_artifact_registry=false" # Set to false if the repository already exists
 ```

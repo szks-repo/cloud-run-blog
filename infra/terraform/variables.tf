@@ -21,6 +21,12 @@ variable "repository_id" {
   default     = "cloud-run-blog"
 }
 
+variable "manage_artifact_registry" {
+  description = "Whether Terraform should create/manage the Artifact Registry repository. Set to false to use an existing repository."
+  type        = bool
+  default     = true
+}
+
 variable "service_name" {
   description = "Name of the Cloud Run service."
   type        = string

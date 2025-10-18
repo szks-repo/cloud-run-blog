@@ -24,13 +24,15 @@ image          = "asia-northeast1-docker.pkg.dev/my-gcp-project/cloud-run-blog/a
 env_vars = {
   "APP_ENV" = "production"
 }
+# manage_artifact_registry = false # Uncomment if repository is pre-created
 ```
 
 4. Run the usual Terraform workflow:
 
 ```bash
 terraform init
-terraform plan
+terraform plan \
+  -var "manage_artifact_registry=false"
 terraform apply
 ```
 

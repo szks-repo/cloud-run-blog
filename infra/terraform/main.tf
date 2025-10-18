@@ -29,6 +29,7 @@ module "artifact_registry" {
   location      = var.artifact_region
   repository_id = var.repository_id
   description   = "Container images for the Cloud Run Blog study project"
+  manage_repository = var.manage_artifact_registry
 }
 
 module "cloud_run_service" {

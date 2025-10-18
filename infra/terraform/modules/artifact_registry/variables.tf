@@ -18,3 +18,9 @@ variable "description" {
   type        = string
   default     = ""
 }
+
+variable "manage_repository" {
+  description = "Whether to create/manage the Artifact Registry repository. Set to false to reference an existing repository."
+  type        = bool
+  default     = true
+}
