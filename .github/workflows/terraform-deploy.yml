@@ -129,14 +129,6 @@ jobs:
       id-token: write
     outputs:
       has_changes: ${{ steps.plan.outputs.has_changes }}
-    env:
-      TF_VAR_project_id: ${{ secrets.GOOGLE_CLOUD_PROJECT_ID }}
-      TF_VAR_region: ${{ env.REGION }}
-      TF_VAR_artifact_region: ${{ env.ARTIFACT_REGION }}
-      TF_VAR_service_name: ${{ env.SERVICE_NAME }}
-      TF_VAR_image: ${{ needs.build.outputs.image }}
-      TERRAFORM_STATE_BUCKET: ${{ secrets.TERRAFORM_STATE_BUCKET }}
-      TERRAFORM_STATE_PREFIX: ${{ secrets.TERRAFORM_STATE_PREFIX }}
     steps:
       - uses: actions/checkout@v4
 
@@ -152,6 +144,9 @@ jobs:
 
       - name: Terraform Init
         working-directory: ${{ env.TERRAFORM_WORKING_DIR }}
+        env:
+          TERRAFORM_STATE_BUCKET: ${{ secrets.TERRAFORM_STATE_BUCKET }}
+          TERRAFORM_STATE_PREFIX: ${{ secrets.TERRAFORM_STATE_PREFIX }}
         run: |
           if [ -z "$TERRAFORM_STATE_BUCKET" ] || [ -z "$TERRAFORM_STATE_PREFIX" ]; then
             echo "TERRAFORM_STATE_BUCKET and TERRAFORM_STATE_PREFIX secrets must be configured." >&2
@@ -172,6 +167,12 @@ jobs:
       - name: Terraform Plan
         id: plan
         working-directory: ${{ env.TERRAFORM_WORKING_DIR }}
+        env:
+          TF_VAR_project_id: ${{ secrets.GOOGLE_CLOUD_PROJECT_ID }}
+          TF_VAR_region: ${{ env.REGION }}
+          TF_VAR_artifact_region: ${{ env.ARTIFACT_REGION }}
+          TF_VAR_service_name: ${{ env.SERVICE_NAME }}
+          TF_VAR_image: ${{ needs.build.outputs.image }}
         run: |
           terraform plan -input=false -out=tfplan
           terraform show -json tfplan > tfplan.json
@@ -210,14 +211,6 @@ jobs:
       id-token: write
     environment:
       name: production
-    env:
-      TF_VAR_project_id: ${{ secrets.GOOGLE_CLOUD_PROJECT_ID }}
-      TF_VAR_region: ${{ env.REGION }}
-      TF_VAR_artifact_region: ${{ env.ARTIFACT_REGION }}
-      TF_VAR_service_name: ${{ env.SERVICE_NAME }}
-      TF_VAR_image: ${{ needs.build.outputs.image }}
-      TERRAFORM_STATE_BUCKET: ${{ secrets.TERRAFORM_STATE_BUCKET }}
-      TERRAFORM_STATE_PREFIX: ${{ secrets.TERRAFORM_STATE_PREFIX }}
     steps:
       - uses: actions/checkout@v4
 
@@ -239,6 +232,9 @@ jobs:
 
       - name: Terraform Init
         working-directory: ${{ env.TERRAFORM_WORKING_DIR }}
+        env:
+          TERRAFORM_STATE_BUCKET: ${{ secrets.TERRAFORM_STATE_BUCKET }}
+          TERRAFORM_STATE_PREFIX: ${{ secrets.TERRAFORM_STATE_PREFIX }}
         run: |
           if [ -z "$TERRAFORM_STATE_BUCKET" ] || [ -z "$TERRAFORM_STATE_PREFIX" ]; then
             echo "TERRAFORM_STATE_BUCKET and TERRAFORM_STATE_PREFIX secrets must be configured." >&2
@@ -250,4 +246,10 @@ jobs:
 
       - name: Terraform Apply
         working-directory: ${{ env.TERRAFORM_WORKING_DIR }}
+        env:
+          TF_VAR_project_id: ${{ secrets.GOOGLE_CLOUD_PROJECT_ID }}
+          TF_VAR_region: ${{ env.REGION }}
+          TF_VAR_artifact_region: ${{ env.ARTIFACT_REGION }}
+          TF_VAR_service_name: ${{ env.SERVICE_NAME }}
+          TF_VAR_image: ${{ needs.build.outputs.image }}
         run: terraform apply -input=false tfplan
