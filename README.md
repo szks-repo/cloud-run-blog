@@ -13,15 +13,7 @@ Runs are triggered manually (`workflow_dispatch`) to keep full control over infr
 
 ### Required GitHub secrets
 
-Configure the following repository secrets before running the workflow:
-
-- `WORKLOAD_IDENTITY_PROVIDER` – OIDC provider resource used for GitHub Actions authentication.
-- `GOOGLE_CLOUD_SERVICE_ACCOUNT` – Service account email with permissions for Cloud Build, Artifact Registry, and Terraform-managed resources.
-- `GOOGLE_CLOUD_PROJECT_ID` – Target Google Cloud project ID.
-- `ARTIFACT_REPOSITORY` – Artifact Registry repository path (e.g. `asia-northeast1-docker.pkg.dev/my-project/cloud-run-blog/app`).
-- `TERRAFORM_STATE_BUCKET` – GCS bucket name for Terraform remote state.
-- `TERRAFORM_STATE_PREFIX` – Key prefix within the state bucket (e.g. `cloud-run-blog/prod`).
-- Optional: set `TF_VAR_manage_artifact_registry=false` when using an existing Artifact Registry repository managed outside Terraform.
+Before running the workflow, ensure that the required GitHub Secrets referenced inside `.github/workflows/terraform-deploy.yml` and `.github/workflows/deploy.yml` are populated (OIDC provider, service account, project ID, Artifact Registry reference, and Terraform state configuration). Avoid storing raw credential values in the repository—use Secrets only.
 
 Create a protected GitHub environment (e.g. `production`) with required reviewers to gate the `terraform-apply` job if manual approval is desired.
 
@@ -42,6 +34,7 @@ terraform init \
   -backend-config="prefix=cloud-run-blog/dev"
 terraform plan \
   -var "project_id=YOUR_PROJECT" \
-  -var "image=asia-northeast1-docker.pkg.dev/YOUR_PROJECT/cloud-run-blog/app:latest" \
+  -var "image=asia-northeast1-docker.pkg.dev/YOUR_PROJECT/YOUR_REPOSITORY/cloud-run-blog:latest" \
+  -var "repository_id=YOUR_REPOSITORY" \
   -var "manage_artifact_registry=false" # Set to false if the repository already exists
 ```

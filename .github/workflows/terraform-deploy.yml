@@ -132,6 +132,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Configure Terraform environment
+        run: |
+          REPO_PATH="${{ secrets.ARTIFACT_REPOSITORY }}"
+          if [ -z "$REPO_PATH" ]; then
+            echo "ARTIFACT_REPOSITORY secret must be configured." >&2
+            exit 1
+          fi
+          REPO_ID=$(echo "$REPO_PATH" | awk -F'/' '{print $(NF-1)}')
+          if [ -z "$REPO_ID" ]; then
+            echo "Failed to derive repository ID from ARTIFACT_REPOSITORY." >&2
+            exit 1
+          fi
+          echo "TF_VAR_repository_id=$REPO_ID" >> "$GITHUB_ENV"
+          echo "TF_VAR_manage_artifact_registry=false" >> "$GITHUB_ENV"
+
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
@@ -214,6 +229,21 @@ jobs:
       name: production
     steps:
       - uses: actions/checkout@v4
+
+      - name: Configure Terraform environment
+        run: |
+          REPO_PATH="${{ secrets.ARTIFACT_REPOSITORY }}"
+          if [ -z "$REPO_PATH" ]; then
+            echo "ARTIFACT_REPOSITORY secret must be configured." >&2
+            exit 1
+          fi
+          REPO_ID=$(echo "$REPO_PATH" | awk -F'/' '{print $(NF-1)}')
+          if [ -z "$REPO_ID" ]; then
+            echo "Failed to derive repository ID from ARTIFACT_REPOSITORY." >&2
+            exit 1
+          fi
+          echo "TF_VAR_repository_id=$REPO_ID" >> "$GITHUB_ENV"
+          echo "TF_VAR_manage_artifact_registry=false" >> "$GITHUB_ENV"
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2

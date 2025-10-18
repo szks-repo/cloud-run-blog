@@ -20,10 +20,11 @@ This directory contains Infrastructure as Code definitions for deploying the Clo
 project_id     = "my-gcp-project"
 region         = "asia-northeast1"
 artifact_region = "asia-northeast1"
-image          = "asia-northeast1-docker.pkg.dev/my-gcp-project/cloud-run-blog/app:latest"
+image          = "asia-northeast1-docker.pkg.dev/my-gcp-project/cloud-run-source-deploy/cloud-run-blog:latest"
 env_vars = {
   "APP_ENV" = "production"
 }
+# repository_id = "cloud-run-source-deploy" # Set to existing Artifact Registry repository ID
 # manage_artifact_registry = false # Uncomment if repository is pre-created
 ```
 
